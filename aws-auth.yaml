@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  # ... your existing mapRoles will be here ...
+  mapUsers: |
+    - userarn: arn:aws:iam::123456789012:user/jenkins-worker
+      username: jenkins-worker
+      groups:
+        - system:masters
