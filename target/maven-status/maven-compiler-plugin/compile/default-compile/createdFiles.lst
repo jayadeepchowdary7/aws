@@ -1,0 +1,4 @@
+com/example/aws_spring_application/repository/EmployeeRepository.class
+com/example/aws_spring_application/controller/EmployeeController.class
+com/example/aws_spring_application/AwsSpringApplication.class
+com/example/aws_spring_application/model/Employee.class
