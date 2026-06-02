@@ -6,7 +6,7 @@ pipeline {
         AWS_ACCOUNT_ID = '951151046739' 
         AWS_REGION     = 'ap-south-1'
         ECR_REPO_NAME  = 'spring-boot-app'
-        CLUSTER_NAME   = 'confused-classical-dolphin'
+        CLUSTER_NAME   = 'hilarious-alternative-outfit'
         
         // Dynamic image definition tag
         IMAGE_TAG      = "build-${BUILD_NUMBER}"

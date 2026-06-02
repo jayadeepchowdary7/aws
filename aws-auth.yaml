@@ -4,9 +4,12 @@ metadata:
   name: aws-auth
   namespace: kube-system
 data:
-  # ... your existing mapRoles will be here ...
   mapUsers: |
-    - userarn: arn:aws:iam::123456789012:user/jenkins-worker
-      username: jenkins-worker
+    - userarn: arn:aws:iam::951151046739:user/jenkins-pipeline-user
+      username: jenkins-pipeline-user
+      groups:
+        - system:masters
+    - userarn: arn:aws:iam::951151046739:user/jayadeep
+      username: jayadeep
       groups:
         - system:masters
