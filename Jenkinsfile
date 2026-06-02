@@ -17,8 +17,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                // Pulls the matching branch configuration from your GitHub project
-                checkout scm
+                git branch: 'main', url: 'https://github.com/jayadeepchowdary7/aws.git'
             }
         }
 
@@ -62,7 +61,7 @@ pipeline {
                         
                         echo "Updating deployment manifest references with tag: ${IMAGE_TAG}"
                         // Replaces the placeholder text dynamically inside the YAML file
-                        sh "sed -i 's|IMAGE_PLACEHOLDER|${IMAGE_TAG}|g' k8s/deployment.yaml"
+                        sh "perl -p -i -e 's|IMAGE_PLACEHOLDER|${IMAGE_TAG}|g' k8s/deployment.yaml"
                         
                         echo "Applying deployment and services resources to EKS..."
                         sh "kubectl apply -f k8s/deployment.yaml"
