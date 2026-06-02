@@ -41,19 +41,13 @@ pipeline {
                     url: 'https://github.com/jayadeepchowdary7/aws.git'
             }
         }
-        
+
         stage('Build & Tag Docker Image') {
             steps {
                 sh """
-                docker buildx create --use --name multiarch-builder || true
+                docker build -t ${REPOSITORY_NAME}:${IMAGE_TAG} .
 
-                docker buildx build \
-                --platform linux/amd64 \
-                -t ${REPOSITORY_NAME}:${IMAGE_TAG} \
-                --load .
-
-                docker tag \
-                ${REPOSITORY_NAME}:${IMAGE_TAG} \
+                docker tag ${REPOSITORY_NAME}:${IMAGE_TAG} \
                 ${ECR_URI}:${IMAGE_TAG}
                 """
             }
@@ -143,6 +137,80 @@ pipeline {
 
                 echo "========== SERVICES =========="
                 kubectl get svc -n ${K8S_NAMESPACE}
+                """
+            }
+        }
+    }
+}
+
+
+
+====================== working ======================
+
+pipeline {
+    agent any
+
+    environment {
+        PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+        AWS_REGION = 'ap-south-1'
+        REGISTRY_ID = '951151046739'
+        REPOSITORY_NAME = 'spring-boot-app'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+
+        ECR_URI = "${REGISTRY_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY_NAME}"
+    }
+
+    stages {
+
+        stage('Check Environment') {
+            steps {
+                sh 'whoami'
+                sh 'echo $PATH'
+                sh 'which docker || true'
+                sh 'docker --version'
+                sh 'aws --version'
+            }
+        }
+
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github-token',
+                    url: 'https://github.com/jayadeepchowdary7/aws.git'
+            }
+        }
+
+        stage('Build & Tag Docker Image') {
+            steps {
+                sh """
+                docker build -t ${REPOSITORY_NAME}:${IMAGE_TAG} .
+
+                docker tag ${REPOSITORY_NAME}:${IMAGE_TAG} \
+                ${ECR_URI}:${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Login to Amazon ECR') {
+            steps {
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials']
+                ]) {
+                    sh """
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login --username AWS --password-stdin \
+                    ${REGISTRY_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                    """
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                sh """
+                docker push ${ECR_URI}:${IMAGE_TAG}
                 """
             }
         }
