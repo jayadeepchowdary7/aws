@@ -14,6 +14,9 @@ This guide provides detailed, step‑by‑step instructions for deploying the Sp
 7. [Setting Up Monitoring (Prometheus + Grafana)](#setting-up-monitoring-prometheus--grafana)
 8. [Verification and Testing](#verification-and-testing)
 9. [Troubleshooting Tips](#troubleshooting-tips)
+10. [GitOps with Argo CD](#gitops-with-argo-cd)
+---
+
 ## Prerequisites
 
 Before you begin, ensure you have the following tools and accounts configured:
@@ -69,7 +72,7 @@ export K8S_NAMESPACE=default
 
 ---
 
-## ECR Repository Setup
+## AWS Resources Preparation
 
 ### 1. Create the ECR Repository
 ```bash
@@ -81,8 +84,7 @@ aws ecr create-repository \
 ```
 > **Output**: Note the `repositoryUri` (should match `${ECR_URI}`).
 
-## EKS Cluster Setup
-### 1. Ensure EKS Cluster Exists
+### 2. Ensure EKS Cluster Exists
 If you already have an EKS cluster (as referenced in Jenkinsfile), skip this step. Otherwise:
 
 #### Create EKS Cluster (using `eksctl` - recommended)
@@ -351,3 +353,143 @@ You now have a production‑ready Spring Boot application deployed on AWS EKS wi
 From here, you can enhance the project further (e.g., add a real database, input validation, authentication, or expand the API) while maintaining a reliable CI/CD pipeline and observability stack.
 
 Happy deploying! 🚀
+## GitOps with Argo CD
+
+Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes. It automates the deployment of applications by monitoring a Git repository and automatically applying changes to the cluster when the desired state in Git diverges from the live state.
+
+### Why Use Argo CD with Your Project?
+
+While your current Jenkins pipeline handles building and pushing Docker images, Argo CD excels at the deployment and synchronization phase:
+- **Continuous Synchronization**: Automatically ensures your cluster state matches the desired state in Git
+- **Drift Detection & Self-Healing**: Detects and corrects configuration drift
+- **Rich UI & CLI**: Visualize deployments, rollbacks, and differences
+- **Multi-Cluster & Multi-Tenant**: Manage multiple clusters from a single interface
+- **RBAC & SSO**: Integrates with existing authentication systems
+- **PreSync & PostSync Hooks**: Run validation or cleanup steps
+
+### Recommended Hybrid Approach
+Keep Jenkins for:
+- Building Docker images (multi-arch, testing)
+- Pushing images to ECR
+- Updating image tags in Kubernetes manifests (via `sed`)
+
+Use Argo CD for:
+- Deploying and synchronizing Kubernetes manifests
+- Automated rollouts and rollbacks
+- Observability of deployment state
+
+### Implementation Steps
+
+#### 1. Install Argo CD on Your EKS Cluster
+```bash
+# Create namespace
+kubectl create namespace argocd
+
+# Install Argo CD (stable release)
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Wait for pods to be ready
+kubectl -n argocd wait --for=condition=available deployment --all --timeout=180s
+```
+
+#### 2. Access Argo CD UI
+```bash
+# Option A: Port-forward (quick access)
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+# Visit: https://localhost:8080
+# Initial password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+# Option B: LoadBalancer (for permanent access)
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+# Get external IP: kubectl -n argocd get svc argocd-server
+```
+
+#### 3. Prepare Your Repository for Argo CD
+Your existing `k8s/` directory structure works with Argo CD. The key is ensuring Jenkins updates the image tag in `k8s/deployment.yaml` and commits the change.
+
+#### Update Your Jenkinsfile (Add Git Commit Step)
+Add this stage after pushing the image to ECR:
+```groovy
+stage('Update Git with Image Tag') {
+    steps {
+        // Configure Git (if needed)
+        sh '''
+        git config user.name "jenkins-bot"
+        git config user.email "jenkins@your-company.com"
+        '''
+
+        // Update the image tag in k8s/deployment.yaml
+        sh """
+        sed -i \"s|IMAGE_PLACEHOLDER|${ECR_URI}:${IMAGE_TAG}|g\" k8s/deployment.yaml
+        """
+
+        // Commit and push the change
+        sh '''
+        git add k8s/deployment.yaml
+        git commit -m "chore: update image tag to ${ECR_URI}:${IMAGE_TAG} [skip ci]"
+        git push origin HEAD:${GIT_BRANCH:-main}
+        '''
+    }
+}
+```
+
+#### 4. Create the Argo CD Application
+This tells Argo CD where to find your manifests and how to sync them.
+
+##### Option A: Using `argocd` CLI
+```bash
+argocd app create spring-boot-app \
+  --repo https://github.com/jayadeepchowdary7/aws.git \
+  --revision main \
+  --path k8s \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace default \
+  --sync-policy automated
+```
+
+##### Option B: Define Application as Manifest (GitOps for Argo CD)
+Create `.argocd/application.yaml` in your repo:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spring-boot-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jayadeepchowdary7/aws.git
+    targetRevision: main
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+Apply it:
+```bash
+kubectl apply -f .argocd/application.yaml
+```
+
+#### 5. Verify the Setup
+- In Argo CD UI or via `argocd app get spring-boot-app`, confirm the app is `Synced`
+- Trigger a Jenkins build to update the image tag
+- Watch Argo CD automatically sync the change (if `syncPolicy` is automated) or show it as `OutOfSync` for manual approval
+
+### Benefits of This Approach
+- **Audit Trail**: Every deploy is tied to a Git commit
+- **Rollbacks**: `argocd app rollback spring-boot-app` to previous version
+- **Canary/Blue-Green**: Advanced sync waves and hooks
+- **Multi-Environment**: Create separate Applications for dev/staging/prod
+- **Security**: Least-privilege service account for Argo CD, separate from Jenkins
+
+### Next Steps
+1. Consider using Helm or Kustomize with Argo CD for more complex deployments
+2. Implement promotion pipelines (dev → staging → prod) using Argo CD Applications of Applications
+3. Add notification services (Slack, Email) for sync status alerts
+4. Implement image updater tools to automatically update image tags when new images are pushed to ECR
+
+Argo CD complements your existing Jenkins pipeline by providing robust, GitOps-driven deployment synchronization while maintaining your CI/CD build process.
