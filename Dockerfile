@@ -1,7 +1,7 @@
 # ==========================================
 # STAGE 1: Build the application
 # ==========================================
-FROM eclipse-temurin:25-jdk AS builder
+FROM eclipse-temurin:21-jdk AS builder
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ RUN ./mvnw clean package -DskipTests
 # ==========================================
 # STAGE 2: Create the lightweight runtime image
 # ==========================================
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
