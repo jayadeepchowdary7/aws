@@ -16,10 +16,22 @@ spec:
     spec:
       containers:
       - name: spring-app
-        # IMAGE_PLACEHOLDER will be updated dynamically by the Jenkins pipeline
-        image: 951151046739.dkr.ecr.ap-south-1.amazonaws.com/spring-boot-app:IMAGE_PLACEHOLDER
+        # IMAGE_PLACEHOLDER is replaced by Jenkins before deployment
+        image: IMAGE_PLACEHOLDER
         ports:
         - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
         resources:
           limits:
             cpu: "500m"

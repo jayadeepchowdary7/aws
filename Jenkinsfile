@@ -102,29 +102,16 @@ pipeline {
         stage('Deploy to AWS EKS') {
             steps {
                 sh """
-                if kubectl get deployment ${DEPLOYMENT_NAME} -n ${K8S_NAMESPACE}; then
+                echo "Applying Kubernetes manifests..."
 
-                    echo "Deployment exists → Updating image"
+                # Replace IMAGE_PLACEHOLDER with the actual image URI and apply
+                sed -e "s|IMAGE_PLACEHOLDER|${ECR_URI}:${IMAGE_TAG}|g" k8s/deployment.yaml | \
+                    kubectl apply -f -
 
-                    kubectl set image deployment/${DEPLOYMENT_NAME} \
-                    ${CONTAINER_NAME}=${ECR_URI}:${IMAGE_TAG} \
-                    -n ${K8S_NAMESPACE}
+                kubectl apply -f k8s/service.yaml
 
-                else
-
-                    echo "Deployment not found → Creating deployment"
-
-                    kubectl create deployment ${DEPLOYMENT_NAME} \
-                    --image=${ECR_URI}:${IMAGE_TAG} \
-                    -n ${K8S_NAMESPACE}
-
-                    kubectl expose deployment ${DEPLOYMENT_NAME} \
-                    --type=LoadBalancer \
-                    --port=80 \
-                    --target-port=8080 \
-                    -n ${K8S_NAMESPACE}
-
-                fi
+                # Trigger a rolling restart to ensure the new image is pulled
+                kubectl rollout restart deployment/${DEPLOYMENT_NAME} -n ${K8S_NAMESPACE} || true
                 """
             }
         }
