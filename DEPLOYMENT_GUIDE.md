@@ -7,15 +7,13 @@ This guide provides detailed, step‑by‑step instructions for deploying the Sp
 ## Table of Contents
 1. [Prerequisites](#prerequisites)
 2. [Initial Setup](#initial-setup)
-3. [AWS Resources Preparation](#aws-resources-preparation)
-4. [Building and Publishing the Docker Image](#building-and-publishing-the-docker-image)
-5. [Deploying to EKS](#deploying-to-eks)
-6. [Setting Up Monitoring (Prometheus + Grafana)](#setting-up-monitoring-prometheus--grafana)
-7. [Verification and Testing](#verification-and-testing)
-8. [Troubleshooting Tips](#troubleshooting-tips)
-
----
-
+3. [ECR Repository Setup](#ecr-repository-setup)
+4. [EKS Cluster Setup](#eks-cluster-setup)
+5. [Building and Publishing the Docker Image](#building-and-publishing-the-docker-image)
+6. [Deploying to EKS](#deploying-to-eks)
+7. [Setting Up Monitoring (Prometheus + Grafana)](#setting-up-monitoring-prometheus--grafana)
+8. [Verification and Testing](#verification-and-testing)
+9. [Troubleshooting Tips](#troubleshooting-tips)
 ## Prerequisites
 
 Before you begin, ensure you have the following tools and accounts configured:
@@ -71,7 +69,7 @@ export K8S_NAMESPACE=default
 
 ---
 
-## AWS Resources Preparation
+## ECR Repository Setup
 
 ### 1. Create the ECR Repository
 ```bash
@@ -83,7 +81,8 @@ aws ecr create-repository \
 ```
 > **Output**: Note the `repositoryUri` (should match `${ECR_URI}`).
 
-### 2. Ensure EKS Cluster Exists
+## EKS Cluster Setup
+### 1. Ensure EKS Cluster Exists
 If you already have an EKS cluster (as referenced in Jenkinsfile), skip this step. Otherwise:
 
 #### Create EKS Cluster (using `eksctl` - recommended)
