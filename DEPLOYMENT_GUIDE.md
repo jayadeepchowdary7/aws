@@ -93,12 +93,24 @@ If you already have an EKS cluster (as referenced in Jenkinsfile), skip this ste
 curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
 sudo mv /tmp/eksctl /usr/local/bin
 
+#### Step 1: Define the Variables
+Run these commands in your terminal to set your cluster name and region. Replace my-cool-cluster and us-east-1 with your actual desired values.
+Bash
+export EKS_CLUSTER_NAME="my-cool-cluster"
+export AWS_REGION="us-east-1"
+#### Step 2: Verify the Variables
+Before launching a process that takes 15–20 minutes, it is always a good idea to double-check that your terminal actually sees the variables:
+Bash
+echo "Cluster Name: ${EKS_CLUSTER_NAME}"
+echo "Region: ${AWS_REGION}"
+Step 3: Run Your Command
+
 # Create cluster
 eksctl create cluster \
     --name ${EKS_CLUSTER_NAME} \
     --region ${AWS_REGION} \
     --nodegroup-name standard-workers \
-    --node-type t2.medium \
+    --node-type t3.micro \
     --nodes 3 \
     --nodes-min 1 \
     --nodes-max 4 \
