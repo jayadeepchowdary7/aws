@@ -109,6 +109,7 @@ pipeline {
                     kubectl apply -f -
 
                 kubectl apply -f k8s/service.yaml
+                kubectl apply -f k8s/servicemonitor.yaml
 
                 # Trigger a rolling restart to ensure the new image is pulled
                 kubectl rollout restart deployment/${DEPLOYMENT_NAME} -n ${K8S_NAMESPACE} || true
