@@ -98,7 +98,7 @@ eksctl create cluster \
     --name ${EKS_CLUSTER_NAME} \
     --region ${AWS_REGION} \
     --nodegroup-name standard-workers \
-    --node-type t3.medium \
+    --node-type t2.medium \
     --nodes 3 \
     --nodes-min 1 \
     --nodes-max 4 \
